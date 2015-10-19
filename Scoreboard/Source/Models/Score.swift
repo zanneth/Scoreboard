@@ -8,7 +8,7 @@
 
 import Foundation
 
-class Score: Printable {
+class Score: CustomStringConvertible {
     var identifier:     Int64   = 0
     var scoreValue:     Int64   = 0
     var dateCreated:    NSDate  = NSDate()
@@ -36,8 +36,7 @@ class Score: Printable {
         }
     }
     
-    var description: String
-    {
+    var description: String {
         get
         {
             return "id=\(self.identifier) \(self.scoreValue) \"\(self.playerName)\""

@@ -8,7 +8,7 @@
 
 import Foundation
 
-class Game: Printable {
+class Game: CustomStringConvertible {
     var identifier: Int64   = 0
     var name:       String  = ""
     var scores:     [Score] = []
@@ -36,8 +36,7 @@ class Game: Printable {
         }
     }
     
-    var description: String
-    {
+    var description: String {
         get
         {
             return "id=\(self.identifier) \"\(self.name)\" scores=\(self.scores)"
