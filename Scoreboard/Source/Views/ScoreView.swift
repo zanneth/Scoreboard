@@ -48,7 +48,7 @@ class ScoreView: UIView {
     private var _nameLabel: VectorLabel = VectorLabel()
     private var _valueLabel: VectorLabel = VectorLabel()
     
-    private let _textColor = ScoreboardViewController.kForegroundBlueColor
+    private let _textColor = Theme.tempestTheme().foregroundBlueColor
     private let _textSize: CGFloat = 32.0
     
     init(score: Score, ordinal: UInt)

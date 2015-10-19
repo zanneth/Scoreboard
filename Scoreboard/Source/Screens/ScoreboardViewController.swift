@@ -15,11 +15,11 @@ class ScoreboardViewController: UIViewController {
     private var _xionTitleLabel:         VectorLabel = VectorLabel(text: "XION ARCADE", size: 20.0)
     private var _highscoresTitleLabel:   VectorLabel = VectorLabel(text: "HIGH SCORES", size: 42.0)
     private var _copyrightLabel:         VectorLabel = VectorLabel(text: "© MMXV XIONSF.COM", size: 20.0)
+    private var _transientMessageLabel:  VectorLabel = VectorLabel(text: "", size: 36.0)
     private var _highscoresViews:        [ScoreView] = []
     private var _xionDataSource:         XionDataSource!
+    private var _currentlyPollingGame:   Game?
     
-    static public let kForegroundBlueColor:     UIColor = UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0)
-    static private let kForegroundGreenColor:   UIColor = UIColor(red: 0.5, green: 1.0, blue: 0.5, alpha: 1.0)
     static private let kScreenPadding:          CGFloat = 50.0
     static private let kScoresListRatio:        CGFloat = 1.0/2.3
     static private let kScoreViewsMarginY:      CGFloat = 30.0
@@ -48,15 +48,20 @@ class ScoreboardViewController: UIViewController {
         super.viewDidLoad()
         
         self.view.backgroundColor = UIColor.blackColor()
+        let theme = Theme.tempestTheme()
         
-        _xionTitleLabel.textAttributes = [NSForegroundColorAttributeName : ScoreboardViewController.kForegroundGreenColor]
+        _xionTitleLabel.textAttributes = [NSForegroundColorAttributeName : theme.foregroundGreenColor]
         self.view.addSubview(_xionTitleLabel)
         
-        _highscoresTitleLabel.textAttributes = [NSForegroundColorAttributeName : UIColor.redColor()]
+        _highscoresTitleLabel.textAttributes = [NSForegroundColorAttributeName : theme.foregroundRedColor]
         self.view.addSubview(_highscoresTitleLabel)
         
-        _copyrightLabel.textAttributes = [NSForegroundColorAttributeName : ScoreboardViewController.kForegroundBlueColor]
+        _copyrightLabel.textAttributes = [NSForegroundColorAttributeName : theme.foregroundBlueColor]
         self.view.addSubview(_copyrightLabel)
+        
+        _transientMessageLabel.textAttributes = [NSForegroundColorAttributeName : theme.foregroundRedColor]
+        _transientMessageLabel.text = "LOADING..."
+        self.view.addSubview(_transientMessageLabel)
         
         _updateScoreboard()
     }
@@ -71,6 +76,7 @@ class ScoreboardViewController: UIViewController {
         super.viewDidLayoutSubviews()
         let bounds = self.view.bounds
         
+        // layout title label
         let xionTitleLabelSize = _xionTitleLabel.sizeThatFits(CGSizeZero)
         let xionTitleLabelFrame = CGRect(
             x: rint(bounds.size.width / 2.0 - xionTitleLabelSize.width / 2.0),
@@ -80,6 +86,7 @@ class ScoreboardViewController: UIViewController {
         )
         _xionTitleLabel.frame = xionTitleLabelFrame
         
+        // layout "HIGH SCORES" label
         let highscoresLabelSize = _highscoresTitleLabel.sizeThatFits(CGSizeZero)
         let highscoresLabelFrame = CGRect(
             x: rint(bounds.size.width / 2.0 - highscoresLabelSize.width / 2.0),
@@ -89,6 +96,17 @@ class ScoreboardViewController: UIViewController {
         )
         _highscoresTitleLabel.frame = highscoresLabelFrame
         
+        // layout copyright
+        let copyrightLabelSize = _copyrightLabel.sizeThatFits(CGSizeZero)
+        let copyrightLabelFrame = CGRect(
+            x: rint(bounds.size.width / 2.0 - copyrightLabelSize.width / 2.0),
+            y: rint(bounds.size.height - copyrightLabelSize.height - ScoreboardViewController.kScreenPadding),
+            width: copyrightLabelSize.width,
+            height: copyrightLabelSize.height
+        )
+        _copyrightLabel.frame = copyrightLabelFrame
+        
+        // layout score views
         // compute score views vertical space
         let scoreViewsWidth = bounds.size.width * ScoreboardViewController.kScoresListRatio
         let scoreViewsMaxBounds = CGRect(x: 0.0, y: 0.0, width: scoreViewsWidth, height: CGFloat.max)
@@ -98,9 +116,11 @@ class ScoreboardViewController: UIViewController {
             scoreViewsCompositeHeight += highscoreViewSize.height + ScoreboardViewController.kScoreViewsMarginY
         }
         
+        let scoreViewsBoundsOriginY = CGRectGetMaxY(_highscoresTitleLabel.frame)
+        let scoreViewsBoundsHeight = CGRectGetMinY(_copyrightLabel.frame) - scoreViewsBoundsOriginY
         let scoreViewsBounds = CGRect(
             x: rint(bounds.size.width / 2.0 - scoreViewsWidth / 2.0),
-            y: rint(bounds.size.height / 2.0 - scoreViewsCompositeHeight / 2.0),
+            y: rint(scoreViewsBoundsOriginY + (scoreViewsBoundsHeight / 2.0 - scoreViewsCompositeHeight / 2.0)),
             width: scoreViewsWidth,
             height: scoreViewsCompositeHeight
         )
@@ -119,55 +139,116 @@ class ScoreboardViewController: UIViewController {
             curScoreViewsOriginY += highscoreView.bounds.size.height + ScoreboardViewController.kScoreViewsMarginY
         }
         
-        let copyrightLabelSize = _copyrightLabel.sizeThatFits(CGSizeZero)
-        let copyrightLabelFrame = CGRect(
-            x: rint(bounds.size.width / 2.0 - copyrightLabelSize.width / 2.0),
-            y: rint(bounds.size.height - copyrightLabelSize.height - ScoreboardViewController.kScreenPadding),
-            width: copyrightLabelSize.width,
-            height: copyrightLabelSize.height
+        // layout transient message view
+        let messageLabelSize = _transientMessageLabel.sizeThatFits(CGSizeZero)
+        let messageLabelFrame = CGRect(
+            x: rint(bounds.size.width / 2.0 - messageLabelSize.width / 2.0),
+            y: rint(bounds.size.height / 2.0 - messageLabelSize.height / 2.0),
+            width: messageLabelSize.width,
+            height: messageLabelSize.height
         )
-        _copyrightLabel.frame = copyrightLabelFrame
+        _transientMessageLabel.frame = messageLabelFrame
     }
     
     // MARK: Internal
     
     internal func _updateScoreboard()
     {
-        _xionDataSource.fetchGames { (games: [Game]) -> Void in
+        _xionDataSource.fetchGames { (games: [Game], error: NSError?) -> Void in
             dispatch_async(dispatch_get_main_queue(), { () -> Void in
-                var highscoresViews: [ScoreView] = []
                 var scoreboardGame: Game? = nil
                 
-                for game: Game in games {
-                    if (game.name == self.gameName) {
-                        scoreboardGame = game
-                        break
-                    }
-                }
-                
-                if scoreboardGame != nil {
-                    let scores: [Score] = scoreboardGame!.scores
-                    var ordinal: UInt = 1
-                    for score: Score in scores {
-                        let scoreView = ScoreView(score: score, ordinal: ordinal)
-                        highscoresViews.append(scoreView)
-                        
-                        self.view.addSubview(scoreView)
-                        ++ordinal
-                        
-                        if ordinal - 1 >= ScoreboardViewController.kScoreViewsToShowCount {
+                if (error == nil) {
+                    for game: Game in games {
+                        if (game.name == self.gameName) {
+                            scoreboardGame = game
                             break
                         }
                     }
                 }
                 
-                for existingView: ScoreView in self._highscoresViews {
-                    existingView.removeFromSuperview()
+                if scoreboardGame != nil {
+                    self._publishScoreboardUI(scoreboardGame!)
+                    self._startPollingGame(scoreboardGame!)
+                } else {
+                    print("Error loading games: \(error)")
+                    self._showError()
                 }
-                
-                self._highscoresViews = highscoresViews
-                self.viewDidLayoutSubviews()
             })
         }
+    }
+    
+    internal func _startPollingGame(game: Game)
+    {
+        if _currentlyPollingGame != nil {
+            _stopPollingAnyGames()
+        }
+        
+        _currentlyPollingGame = game
+        
+        _xionDataSource.pollForGameUpdate(game, completion: { (updatedGame: Game?, error: NSError?) -> Void in
+            if updatedGame != nil {
+                self._publishScoreboardUI(updatedGame!)
+                self._startPollingGame(updatedGame!)
+            } else {
+                print("Error loading game update: \(error)")
+                self._currentlyPollingGame = nil
+                self._showError()
+            }
+        })
+    }
+    
+    internal func _stopPollingAnyGames()
+    {
+        if _currentlyPollingGame != nil {
+            _xionDataSource.cancelGameUpdatePoll(_currentlyPollingGame!)
+        }
+        _currentlyPollingGame = nil
+    }
+    
+    internal func _clearHighscoresViews()
+    {
+        for existingView: ScoreView in self._highscoresViews {
+            existingView.removeFromSuperview()
+        }
+        self._highscoresViews.removeAll()
+    }
+    
+    internal func _publishScoreboardUI(scoreboardGame: Game)
+    {
+        dispatch_async(dispatch_get_main_queue(), { () -> Void in
+            var highscoresViews: [ScoreView] = []
+            var ordinal: UInt = 1
+            
+            let scores: [Score] = scoreboardGame.scores
+            let sortedScores: [Score] = scores.sort({ (score1: Score, score2: Score) -> Bool in
+                return score1.scoreValue >= score2.scoreValue
+            })
+            
+            for score: Score in sortedScores {
+                let scoreView = ScoreView(score: score, ordinal: ordinal)
+                highscoresViews.append(scoreView)
+                
+                self.view.addSubview(scoreView)
+                ++ordinal
+                
+                if ordinal - 1 >= ScoreboardViewController.kScoreViewsToShowCount {
+                    break
+                }
+            }
+        
+            self._clearHighscoresViews()
+            self._highscoresViews = highscoresViews
+            self._transientMessageLabel.hidden = true
+            self.view.setNeedsLayout()
+        })
+    }
+    
+    internal func _showError()
+    {
+        self._clearHighscoresViews()
+        self._transientMessageLabel.text = "ERROR LOADING SCORES"
+        self._transientMessageLabel.hidden = false
+        self.view.setNeedsLayout()
     }
 }
