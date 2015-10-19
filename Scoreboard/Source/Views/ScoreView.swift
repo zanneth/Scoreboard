@@ -65,7 +65,7 @@ class ScoreView: UIView {
         _ordinalLabel.textAttributes = [NSForegroundColorAttributeName : _textColor]
         _nameLabel.textAttributes = [NSForegroundColorAttributeName : _textColor]
         
-        var valueLabelStyle = NSMutableParagraphStyle()
+        let valueLabelStyle = NSMutableParagraphStyle()
         valueLabelStyle.alignment = NSTextAlignment.Right
         _valueLabel.textAttributes = [
             NSForegroundColorAttributeName : _textColor,

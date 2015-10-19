@@ -23,7 +23,7 @@ class Theme {
     
     static func tempestTheme() -> Theme
     {
-        var theme = Theme()
+        let theme = Theme()
         theme.foregroundRedColor = UIColor.redColor()
         theme.foregroundGreenColor = UIColor(red: 0.5, green: 1.0, blue: 0.5, alpha: 1.0)
         theme.foregroundBlueColor = UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0)
