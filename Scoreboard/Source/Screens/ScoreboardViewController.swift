@@ -187,13 +187,14 @@ class ScoreboardViewController: UIViewController {
         _currentlyPollingGame = game
         
         _xionDataSource.pollForGameUpdate(game, completion: { (updatedGame: Game?, error: NSError?) -> Void in
+            self._currentlyPollingGame = nil
+            
             if updatedGame != nil {
                 self._publishScoreboardUI(updatedGame!)
                 self._startPollingGame(updatedGame!)
             } else {
                 print("Error loading game update: \(error)")
-                self._currentlyPollingGame = nil
-                self._showError()
+                self._updateScoreboard() // try an update
             }
         })
     }
