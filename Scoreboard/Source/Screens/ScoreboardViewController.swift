@@ -29,7 +29,7 @@ class ScoreboardViewController: UIViewController {
     {
         self.gameName = gameName
         
-        let xionBaseURL = NSURL(string: "http://REPLACE_ME") as NSURL!
+        let xionBaseURL = NSURL(string: "http://midna.xionsf.com") as NSURL!
         _xionDataSource = XionDataSource(baseURL: xionBaseURL)
         
         super.init(nibName: nil, bundle: nil)
